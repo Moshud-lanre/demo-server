@@ -51,6 +51,9 @@ Resources:
         ToPort: 65535
         CidrIp: 0.0.0.0/0
 
+      Tags:
+        -   Key: Name 
+            Value: !Sub ${EnvironmentName} Web Server Security Group
   myWebAppLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties: 
@@ -58,20 +61,23 @@ Resources:
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash
-            apt-get update -y
-            apt-get install apache2 -y
-            systemctl start apache2.service
-            cd /var/www/html
-            echo "Udacity Demo Web Server Up and Running!" > index.html
-        ImageId: ami-0c2b8ca1dad447f8a
+            sudo yum update -y
+            sudo amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
+            sudo yum install -y httpd mariadb-server
+            sudo systemctl start httpd
+            sudo systemctl enable httpd
+            sudo chkconfig httpd on
+            echo "Udacity Demo Web Server Up and Running!" > /var/www/html/index.html
+        ImageId: ami-0d5eff06f840b45e9
         KeyName: server-key
-        SecurityGroupIds:
-          - sg-03bfc13072b8bce8d
-        InstanceType: t3.small
+        InstanceType: t2.micro
         BlockDeviceMappings:
-        - DeviceName: "/dev/sdk"
+        - DeviceName: "/dev/xvda"
           Ebs:
-            VolumeSize: '10'
+            Encrypted: false
+            VolumeSize: 10
+            DeleteOnTermination: true
+            VolumeType: gp2
   WebAppGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -97,9 +103,9 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
-      - Type: forward
-        TargetGroupArn:
-          Ref: WebAppTargetGroup
+        - Type: forward
+          TargetGroupArn:
+            Ref: WebAppTargetGroup
       LoadBalancerArn:
         Ref: WebAppLB
       Port: 80
